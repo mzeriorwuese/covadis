@@ -22,9 +22,17 @@ This sample uses the WWO Weather Forecast API and requires an WWO API key
 Get a WWO API key here: https://developer.worldweatheronline.com/api/
 """
 from flask_redis import FlaskRedis
+from envyaml import EnvYAML
+
+# read file env.yaml and parse config
+env = EnvYAML('env.yaml')
+#import the simple HTTP basic auth encoder and decoder.
+from basicauth import decode
 #from dotenv import load_dotenv
 #load_dotenv()
 import os
+import pprint 
+
 from rejson import Client, Path
 
 import json
@@ -41,6 +49,24 @@ def webhook():
 
     This is meant to be used in conjunction with the weather Dialogflow agent
     """
+    # request.headers is actually an EnvironHeaders object that can be accessed like a dictionary
+    # Extract the request headers
+    
+    headers = dict(request.headers)
+    
+    
+    # To decode an encoded basic auth string:
+    
+    try:
+        encoded_str = headers['Authorization']
+        username, password = decode(encoded_str)
+        print (username, password)
+        print(env['project.name'])
+       
+    except AttributeError:
+        return 'illegal operation'
+  
+    
     res="Undefined"
     req = request.get_json(silent=True, force=True)
     return req
@@ -66,4 +92,4 @@ def weather(req):
 
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0')
+    app.run(debug=True, host='127.0.0.1')
