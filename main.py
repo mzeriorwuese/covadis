@@ -23,13 +23,12 @@ Get a WWO API key here: https://developer.worldweatheronline.com/api/
 """
 from flask_redis import FlaskRedis
 from envyaml import EnvYAML
-
+from passlib.hash import pbkdf2_sha256
 # read file env.yaml and parse config
 env = EnvYAML('env.yaml')
 #import the simple HTTP basic auth encoder and decoder.
 from basicauth import decode
-#from dotenv import load_dotenv
-#load_dotenv()
+
 import os
 
 from rejson import Client, Path
@@ -37,8 +36,10 @@ from rejson import Client, Path
 import json
 
 from flask import Flask, request, make_response, jsonify
-
 app = Flask(__name__)
+rc = FlaskRedis(app, host=env['redisDB.host'], port=env['redisDB.port'], password=env['redisDB.password'], decode_responses=env['redisDB.DR'])
+
+
 log = app.logger
 
 
@@ -59,35 +60,76 @@ def webhook():
     try:
         encoded_str = headers['Authorization']
         username, password = decode(encoded_str)
-        print (username, password)
-        print(env['project.name'])
-       
+        hash = pbkdf2_sha256.hash(password)
+        
+        #print (username, hash)
+        #print(env['project.name'])
+        if username != env['config.username'] and pbkdf2_sha256.verify(password, hash):
+           res = "You are not allowed to call this API"
+           return make_response(jsonify({'fulfillmentText': res}))
+        # else:
+        #     res = "ACCESS GRANTED"
+        #     return make_response(jsonify({'fulfillmentText': res}))
     except AttributeError:
-        return 'illegal operation'
+        res = 'illegal operation'
+        return make_response(jsonify({'fulfillmentText': res}))
   
     
     res="Undefined"
     req = request.get_json(silent=True, force=True)
-    return req
+    
     try:
         action = req.get('queryResult').get('action')
     except AttributeError:
-        return 'json error'
+        res =  'json error'
+        return make_response(jsonify({'fulfillmentText': res}))
 
-    if action == 'weather':
-        res = weather(req)    
+    if action == 'register-truck':
+        res = registerTruck(req)    
     else:
         log.error('Unexpected action.')
 
-    print('Action: ' + action)
-    print('Response: ' + res)
+    #print('Action: ' + action)
+    #print('Response: ' + res)
 
     return make_response(jsonify({'fulfillmentText': res}))
 
 
-def weather(req):
-    """Return a friendly HTTP greeting."""
-    return 'Hello World!'
+def registerTruck(req):
+    """Returns a string containing text with a response to the user
+    with the weather forecast or a prompt for more information
+    Takes the city for the forecast and (optional) dates
+    uses the template responses found in weather_responses.py as templates
+    """
+
+    license_plate = req['queryResult']['parameters']['license_plate_number']
+    surname = req['queryResult']['parameters']['surname']
+    other_names = req['queryResult']['parameters']['other_names']
+    truck_type = req['queryResult']['parameters']['truck-type']
+    consignment_type = req['queryResult']['parameters']['consignment_type']
+    start_date = req['queryResult']['parameters']['start_date']
+    originating_depot = req['queryResult']['parameters']['originating_depot']
+    destination_depot = req['queryResult']['parameters']['destination_depot']
+    phon_number = req['queryResult']['parameters']['phon_number']
+    consignment_class = req['queryResult']['parameters']['consignment_class']
+
+    drive_info={"Surname":surname, "Other names":other_names, "Truck type":truck_type, "Consignment type":consignment_type, "Start date":start_date, "Originating depot":originating_depot, "Destination depot":destination_depot, "Phone number":phon_number, "Consignment class":consignment_class}
+    t_info = rc.hmset(license_plate, drive_info)
+    if t_info:
+        return "Profile has been succesfully created for truck with license plate number: "+license_plate
+
+    # parameters = req['queryResult']['parameters']
+    # msisdn = req['queryResult']['parameters']['phon_number']
+
+    # license_plate = req['queryResult']['parameters']['license_plate_number']
+    # rj.jsonset(license_plate, Path.rootPath(), parameters)
+    # print 'Account has been created for {}?'.format(rj.jsonget(license_plate, Path('.msisdn')))
+
+    # originalDetectIntentRequest = req['originalDetectIntentRequest']
+    # print('Dialogflow Parameters:')
+    # print(json.dumps(parameters, indent=4))
+    # print(json.dumps(originalDetectIntentRequest, indent=4))
+    # return json.dumps(originalDetectIntentRequest, indent=4)
 
 
 if __name__ == '__main__':
