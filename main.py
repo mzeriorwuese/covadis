@@ -31,7 +31,6 @@ from basicauth import decode
 #from dotenv import load_dotenv
 #load_dotenv()
 import os
-import pprint 
 
 from rejson import Client, Path
 
