@@ -21,6 +21,11 @@ https://console.dialogflow.com/api-client/#/agent//prebuiltAgents/Weather
 This sample uses the WWO Weather Forecast API and requires an WWO API key
 Get a WWO API key here: https://developer.worldweatheronline.com/api/
 """
+from flask_redis import FlaskRedis
+#from dotenv import load_dotenv
+#load_dotenv()
+import os
+from rejson import Client, Path
 
 import json
 
@@ -36,7 +41,9 @@ def webhook():
 
     This is meant to be used in conjunction with the weather Dialogflow agent
     """
+    res="Undefined"
     req = request.get_json(silent=True, force=True)
+    return req
     try:
         action = req.get('queryResult').get('action')
     except AttributeError:
