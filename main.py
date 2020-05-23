@@ -36,21 +36,20 @@ from rejson import Client, Path
 import json
 
 from flask import Flask, request, make_response, jsonify
-from flask_redis import FlaskRedis
+# from flask_redis import FlaskRedis
+import redis
 app = Flask(__name__)
-redisConfiglocal = FlaskRedis(app, host=env['redisDBlocal.host'], port=env['redisDBlocal.port'], decode_responses=env['redisDBlocal.DR'])
-redisConfigRemote = FlaskRedis(app, host=env['redisDBRemote.host'], port=env['redisDBRemote.port'], password=env['redisDBRemote.password'], decode_responses=env['redisDBRemote.DR'])
 
 environmentVariable = dict(os.environ)
 try:
     print(environmentVariable['GOOGLE_CLOUD_PROJECT'])
+    #rc=FlaskRedis(app, host=env['redisDBRemote.host'], port=env['redisDBRemote.port'], password=env['redisDBRemote.password'], decode_responses=env['redisDBRemote.DR'])
+    rc = redis.Redis(host=env['redisDBRemote.host'], port=env['redisDBRemote.port'], password=env['redisDBRemote.password'], decode_responses=True)
+    host = '0.0.0.0'
 except KeyError:
-    rc=redisConfiglocal
-    #print("nay")
-else:
-    rc=redisConfigRemote
-#rc=(lambda: redisConfigRemote, lambda: redisConfiglocal)[environmentVariable['GOOGLE_CLOUD_PROJECT'] not in environmentVariable]()
-rc=redisConfiglocal
+    #rc=FlaskRedis(app, host=env['redisDBlocal.host'], port=env['redisDBlocal.port'], decode_responses=env['redisDBlocal.DR'])
+    rc = redis.Redis(host=env['redisDBlocal.host'], port=env['redisDBlocal.port'], decode_responses=env['redisDBlocal.DR'])
+    host = '127.0.0.1'
 log = app.logger
 
 
@@ -75,14 +74,13 @@ def webhook():
         username, password = decode(encoded_str)
         hash = pbkdf2_sha256.hash(password)
         
-        #print (username, hash)
-        #print(env['project.name'])
+        
         if username != env['config.username'] and pbkdf2_sha256.verify(password, hash):
             res = "You are not allowed to call this API"
-            #return make_response(jsonify({'fulfillmentText': res}))
+            return make_response(jsonify({'fulfillmentText': res}))
     except AttributeError:
         res = 'illegal operation'
-        #return make_response(jsonify({'fulfillmentText': res}))+
+        return make_response(jsonify({'fulfillmentText': res}))
   
     
     req = request.get_json(silent=True, force=True)
@@ -93,17 +91,14 @@ def webhook():
         action = req.get('queryResult').get('action')
     except AttributeError:
         res =  'json error'
-        #return make_response(jsonify({'fulfillmentText': res}))
+        return make_response(jsonify({'fulfillmentText': res}))
 
     if action == 'register-truck':
        return registerTruck(req)
     else:
         log.error('Unexpected action.')
 
-    #print('Action: ' + action)
-    #print('Response: ' + res)
-
-    #return make_response(jsonify({'fulfillmentText': res}))
+    return make_response(jsonify({'fulfillmentText': res}))
 
 
 def registerTruck(req):
@@ -115,42 +110,22 @@ def registerTruck(req):
 
     license_plate = req['queryResult']['parameters']['license_plate_number']
     surname = req['queryResult']['parameters']['surname']
- #   rc.hset(license_plate, "Surname", surname)
-     #   print("Yessssssss")
-    #else:
-     #   print("oitoerteortio") #   return dict(os.environ)
-    #else:
-#    return dict(os.environ)
-    #if num:
-    #return rc.hget(license_plate, "Surname")
     other_names = req['queryResult']['parameters']['other_names']
-  #  rc.hset(license_plate, "Other_names", other_names)
 
     truck_type = req['queryResult']['parameters']['truck-type']
-   # rc.hset(license_plate, "Truck type", truck_type)
 
     consignment_type = req['queryResult']['parameters']['consignment_type']
-    #rc.hset(license_plate, "Consignment type", consignment_type)
 
     start_date = req['queryResult']['parameters']['start_date']['date_time']
-    #return start_date
-   # rc.hset(license_plate, "Start date", start_date)
 
     originating_depot = req['queryResult']['parameters']['originating_depot']
-  #  rc.hset(license_plate, "Originating depot", originating_depot)
 
     destination_depot = req['queryResult']['parameters']['destination_depot']
- #   rc.hset(license_plate, "Destination depot", destination_depot)
 
     phon_number = req['queryResult']['parameters']['phon_number']
-#    rc.hset(license_plate, "Phone number", phon_number)
 
     consignment_class = req['queryResult']['parameters']['consignment_class']
-    #rc.hset(license_plate, "Consignment class", consignment_class)
-    #if rc.hset(license_plate, "Consignment class", consignment_class) == 1 and rc.hset(license_plate, "Surname", surname)==1 and rc.hset(license_plate, "Truck type", truck_type)==1 and, rc.hset(license_plate, "Other_names", other_names)==1 and rc.hset(license_plate, "Consignment type", consignment_type)==1 and rc.hset(license_plate, "Start date", start_date)==1 and rc.hset(license_plate, "Originating depot", originating_depot)==1 and rc.hset(license_plate, "Phone number", phon_number)==1:
-     #   return "Yessssssss"
-    #else:
-     #   return "oitoerteortio"
+    
     drive_info={"Surname":surname, "Other names":other_names, "Truck type":truck_type, "Consignment type":consignment_type, "Start date":start_date, "Originating depot":originating_depot, "Destination depot":destination_depot, "Phone number":phon_number, "Consignment class":consignment_class}
     pipe = rc.pipeline()
     #pipe.hset
@@ -176,4 +151,4 @@ def registerTruck(req):
 
 
 if __name__ == '__main__':
-    app.run(debug=True, host='127.0.0.1')
+    app.run(debug=True, host=host)
