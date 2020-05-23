@@ -87,6 +87,7 @@ def webhook():
     
     req = request.get_json(silent=True, force=True)
     print(req)
+    return req
     
     try:
         action = req.get('queryResult').get('action')
