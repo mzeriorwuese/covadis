@@ -84,8 +84,8 @@ def webhook():
   
     
     req = request.get_json(silent=True, force=True)
-    print(req)
-    return req
+    # print(req)
+    # return req
     
     try:
         action = req.get('queryResult').get('action')
@@ -116,7 +116,7 @@ def registerTruck(req):
 
     consignment_type = req['queryResult']['parameters']['consignment_type']
 
-    start_date = req['queryResult']['parameters']['start_date']['date_time']
+    start_date = req['queryResult']['parameters']['start_date']
 
     originating_depot = req['queryResult']['parameters']['originating_depot']
 
@@ -141,12 +141,11 @@ def registerTruck(req):
 
     resp = pipe.execute()
     #print(dict(req))
-
-    originalDetectIntentRequest = req['originalDetectIntentRequest']
+    response = str(resp)
     # # print('Dialogflow Parameters:')
     # # print(json.dumps(parameters, indent=4))
     # # print(json.dumps(originalDetectIntentRequest, indent=4))
-    return json.dumps(originalDetectIntentRequest, indent=4)
+    return json.dumps(response, indent=4)
     #return "Hello world"
 
 
