@@ -12,6 +12,7 @@
 # below:
 .git
 .gitignore
+password.py
 
 # Python pycache:
 __pycache__/
