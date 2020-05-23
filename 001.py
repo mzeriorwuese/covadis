@@ -41,17 +41,13 @@ app = Flask(__name__)
 
 
 environmentVariable = dict(os.environ)
-print(environmentVariable)
 try:
     print(environmentVariable['GOOGLE_CLOUD_PROJECT'])
     host='0.0.0.0'
-
+    rc=FlaskRedis(app, host=env['redisDBRemote.host'], port=env['redisDBRemote.port'], password=env['redisDBRemote.password'], decode_responses=env['redisDBRemote.DR'])
 except KeyError:
     rc=FlaskRedis(app, host=env['redisDBlocal.host'], port=env['redisDBlocal.port'], decode_responses=env['redisDBlocal.DR'])
     host='127.0.0.1'
-else:
-    rc=FlaskRedis(app, host=env['redisDBRemote.host'], port=env['redisDBRemote.port'], password=env['redisDBRemote.password'], decode_responses=env['redisDBRemote.DR'])
-
 
 log = app.logger
 
