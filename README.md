@@ -1,6 +1,31 @@
-## Dialogflow Fulfillment Cross-Border Driver Monitoring Software 
-## Using Interactive Chatbot as Part of a Multipronged Approach to 
-## Fight the COVID-19 Pandemic
+## Project Topic:
+Dialogflow Fulfillment Cross-Border Driver Monitoring Software 
+Using Interactive Chatbot as Part of a Multipronged Approach to 
+Fight the COVID-19 Pandemic
+
+## Introduction: 
+The COVID-19 outbreak and the resulting social distancing recommendations and related restrictions have led to numerous short-term changes in economic and social activity around the world. According to the ILO as reported on the UN news site, the risks of food insecurity are now emerging because of containment measures, including border closures implemented by governments. While it is important for governments to ensure a reduction in the risks of inter-border infections, it is equally critical to ensure that the food supply chain is not disrupted.
+
+I have come up with a solution that implements cross-border driver monitoring to address the issue of food supply-chain disruption. The success of our solution is, however, dependent on the collaboration between governments at all levels, and the private sector as part of a multi-pronged approach to fight COVID-19. 
+
+Ensuring that the movement of food and other important materials can move across state borders safely, would require public health departments and the transport unions to:
+
+1. Test, Register and approve all inter-state truck drivers and their staff for each trip. This will require rapid testing methods for covid-19.
+2. Conduct periodic tests on all interstate drivers and update the records database.
+3. Educate all drivers on COVID-19 and how to conduct themselves while in transit.
+4. Use our software to monitor interstate drivers at state borders to verify from the digital travel records if the drivers have been approved for the ongoing trip.
+
+Cross-border driver monitoring helps governments reduce transmission and ensure the food supply chain is not disrupted. This will mitigate the collateral impacts on children, women, and vulnerable populations.
+
+That’s why I recommend that adopting and deploying cross-border driver monitoring system is a key milestone to reopen economies.
+
+## Technology Components used:
+1.	Python
+    1.	  Flask Framework
+2.	Google Dialogflow.
+3.	Google App engine.
+4.	Redis Data Store.
+
 
 ## Setup Instructions
 
