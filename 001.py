@@ -32,11 +32,6 @@ import os
 from rejson import Client, Path
 import json
 from flask import Flask, request, make_response, jsonify
-<<<<<<< HEAD
-# from flask_redis import FlaskRedis
-import redis
-app = Flask(__name__)
-=======
 from datetime import datetime # Current date time in local system
 from passlib.hash import pbkdf2_sha256
 from flask_mail import Mail, Message
@@ -53,7 +48,6 @@ app.config['MAIL_USERNAME'] = 'mzeriorwuese@gmail.com'
 app.config['MAIL_PASSWORD'] = 'xvtusfllhozhmeva'
 app.config['MAIL_USE_TLS'] = False
 app.config['MAIL_USE_SSL'] = True
->>>>>>> d7b0158d59cab12699431766712c3a5908dd3c18
 
 environmentVariable = dict(os.environ)
 print(environmentVariable)
@@ -120,8 +114,6 @@ def webhook():
         log.error('Unexpected action.')
 
     return make_response(jsonify({'fulfillmentText': res}))
-<<<<<<< HEAD
-=======
 
 #This function shall be used to convert the hash data types returned from redis to strings
 def format_hash(my_hash):
@@ -130,7 +122,6 @@ def format_hash(my_hash):
 		params = (value + ': '+my_hash[value])
 		new_val = new_val + params+'\n'
 	return new_val
->>>>>>> d7b0158d59cab12699431766712c3a5908dd3c18
 
 #User registration system    
 def create_password(password):
@@ -145,26 +136,6 @@ def registerTruck(req):
     """
 
     license_plate = req['queryResult']['parameters']['license_plate_number']
-<<<<<<< HEAD
-    surname = req['queryResult']['parameters']['surname']
-    other_names = req['queryResult']['parameters']['other_names']
-
-    truck_type = req['queryResult']['parameters']['truck-type']
-
-    consignment_type = req['queryResult']['parameters']['consignment_type']
-
-    start_date = req['queryResult']['parameters']['start_date']
-
-    originating_depot = req['queryResult']['parameters']['originating_depot']
-
-    destination_depot = req['queryResult']['parameters']['destination_depot']
-
-    phon_number = req['queryResult']['parameters']['phon_number']
-
-    consignment_class = req['queryResult']['parameters']['consignment_class']
-    
-    drive_info={"Surname":surname, "Other names":other_names, "Truck type":truck_type, "Consignment type":consignment_type, "Start date":start_date, "Originating depot":originating_depot, "Destination depot":destination_depot, "Phone number":phon_number, "Consignment class":consignment_class}
-=======
     full_names = req['queryResult']['parameters']['full_name']
     truck_type = req['queryResult']['parameters']['truck-type']
     consignment_type = req['queryResult']['parameters']['consignment_type']
@@ -173,7 +144,6 @@ def registerTruck(req):
     destination_depot = req['queryResult']['parameters']['destination_depot']
     phon_number = req['queryResult']['parameters']['phon_number']
     consignment_class = req['queryResult']['parameters']['consignment_class']
->>>>>>> d7b0158d59cab12699431766712c3a5908dd3c18
     pipe = rc.pipeline()
     pipe.hset(license_plate, "Phone number", phon_number)
     pipe.hset(license_plate, "Destination depot", destination_depot)
@@ -186,18 +156,6 @@ def registerTruck(req):
 
     resp = pipe.execute()
     #print(dict(req))
-<<<<<<< HEAD
-    response = str(resp)
-    # # print('Dialogflow Parameters:')
-    # # print(json.dumps(parameters, indent=4))
-    # # print(json.dumps(originalDetectIntentRequest, indent=4))
-    return json.dumps(response, indent=4)
-    #return "Hello world"
-
-
-if __name__ == '__main__':
-    app.run(debug=True, host=host)
-=======
     response = resp
     if all(response) == 1:
         response='Truck data successfully saved.'
@@ -262,12 +220,11 @@ def search(req):
 
 # Send email function
 def sendMail(email, pwd, msisdn, userRole):
-    msg = Message('Your Covad Bot Service Password', sender = 'mzeriorwuese@gmail.com', recipients = [email])
-    msg.body = ("Hello", msisdn, " this is your Covad Bot Password", pwd, ". Your user role is:", userRole)
-    mail.send(msg)
-    return "Sent"
+       msg = Message('Your Covad Bot Service Password', sender = 'mzeriorwuese@gmail.com', recipients = [email])
+   msg.body = "Hello", msisdn, " this is your Covad Bot Password", pwd, ". Your user role is:", userRole
+   mail.send(msg)
+   return "Sent"
 
 
 if __name__ == '__main__':
     app.run(debug=True, host=host)
->>>>>>> d7b0158d59cab12699431766712c3a5908dd3c18
