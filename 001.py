@@ -28,27 +28,38 @@ from passlib.hash import pbkdf2_sha256
 env = EnvYAML('env.yaml')
 #import the simple HTTP basic auth encoder and decoder.
 from basicauth import decode
-
 import os
-
 from rejson import Client, Path
-
 import json
-
 from flask import Flask, request, make_response, jsonify
-from flask_redis import FlaskRedis
-app = Flask(__name__) 
+from datetime import datetime # Current date time in local system
+from passlib.hash import pbkdf2_sha256
+from flask_mail import Mail, Message
 
+import redis
+app = Flask(__name__)
+
+mail= Mail(app) # initialize the mail object
+
+# define the mail configuration
+app.config['MAIL_SERVER']='smtp.gmail.com'
+app.config['MAIL_PORT'] = 465
+app.config['MAIL_USERNAME'] = 'mzeriorwuese@gmail.com'
+app.config['MAIL_PASSWORD'] = 'xvtusfllhozhmeva'
+app.config['MAIL_USE_TLS'] = False
+app.config['MAIL_USE_SSL'] = True
 
 environmentVariable = dict(os.environ)
+print(environmentVariable)
 try:
     print(environmentVariable['GOOGLE_CLOUD_PROJECT'])
-    host='0.0.0.0'
-    rc=FlaskRedis(app, host=env['redisDBRemote.host'], port=env['redisDBRemote.port'], password=env['redisDBRemote.password'], decode_responses=env['redisDBRemote.DR'])
+    #rc=FlaskRedis(app, host=env['redisDBRemote.host'], port=env['redisDBRemote.port'], password=env['redisDBRemote.password'], decode_responses=env['redisDBRemote.DR'])
+    rc = redis.Redis(host=env['redisDBRemote.host'], port=env['redisDBRemote.port'], password=env['redisDBRemote.password'], decode_responses=True)
+    host = '0.0.0.0'
 except KeyError:
-    rc=FlaskRedis(app, host=env['redisDBlocal.host'], port=env['redisDBlocal.port'], decode_responses=env['redisDBlocal.DR'])
-    host='127.0.0.1'
-
+    #rc=FlaskRedis(app, host=env['redisDBlocal.host'], port=env['redisDBlocal.port'], decode_responses=env['redisDBlocal.DR'])
+    rc = redis.Redis(host=env['redisDBlocal.host'], port=env['redisDBlocal.port'], decode_responses=env['redisDBlocal.DR'])
+    host = '127.0.0.1'
 log = app.logger
 
 
@@ -73,37 +84,49 @@ def webhook():
         username, password = decode(encoded_str)
         hash = pbkdf2_sha256.hash(password)
         
-        #print (username, hash)
-        #print(env['project.name'])
+        
         if username != env['config.username'] and pbkdf2_sha256.verify(password, hash):
             res = "You are not allowed to call this API"
-            #return make_response(jsonify({'fulfillmentText': res}))
+            return make_response(jsonify({'fulfillmentText': res}))
     except AttributeError:
         res = 'illegal operation'
-        #return make_response(jsonify({'fulfillmentText': res}))+
+        return make_response(jsonify({'fulfillmentText': res}))
   
     
     req = request.get_json(silent=True, force=True)
-    #print(req)
+    # print(req)
+    # return req
     
     try:
         action = req.get('queryResult').get('action')
-        print(action)
+        print('Current action: '+action)
     except AttributeError:
         res =  'json error'
-        print(res)
-        #return make_response(jsonify({'fulfillmentText': res}))
+        return make_response(jsonify({'fulfillmentText': res}))
 
     if action == 'register-truck':
-       return registerTruck(req)
+        res = registerTruck(req)
+    if action == 'add_user':
+        res = add_user(req)
+    if action == 'search_truck':
+        res = search(req)
     else:
         log.error('Unexpected action.')
 
-    #print('Action: ' + action)
-    #print('Response: ' + res)
+    return make_response(jsonify({'fulfillmentText': res}))
 
-    #return make_response(jsonify({'fulfillmentText': res}))
+#This function shall be used to convert the hash data types returned from redis to strings
+def format_hash(my_hash):
+	new_val=''
+	for value in my_hash:
+		params = (value + ': '+my_hash[value])
+		new_val = new_val + params+'\n'
+	return new_val
 
+#User registration system    
+def create_password(password):
+    hash = pbkdf2_sha256.hash(password)
+    return hash
 
 def registerTruck(req):
     """Returns a string containing text with a response to the user
@@ -113,50 +136,18 @@ def registerTruck(req):
     """
 
     license_plate = req['queryResult']['parameters']['license_plate_number']
-    surname = req['queryResult']['parameters']['surname']
- #   rc.hset(license_plate, "Surname", surname)
-     #   print("Yessssssss")
-    #else:
-     #   print("oitoerteortio") #   return dict(os.environ)
-    #else:
-#    return dict(os.environ)
-    #if num:
-    #return rc.hget(license_plate, "Surname")
-    other_names = req['queryResult']['parameters']['other_names']
-  #  rc.hset(license_plate, "Other_names", other_names)
-
+    full_names = req['queryResult']['parameters']['full_name']
     truck_type = req['queryResult']['parameters']['truck-type']
-   # rc.hset(license_plate, "Truck type", truck_type)
-
     consignment_type = req['queryResult']['parameters']['consignment_type']
-    #rc.hset(license_plate, "Consignment type", consignment_type)
-
     start_date = req['queryResult']['parameters']['start_date']
-    #return start_date
-   # rc.hset(license_plate, "Start date", start_date)
-
     originating_depot = req['queryResult']['parameters']['originating_depot']
-  #  rc.hset(license_plate, "Originating depot", originating_depot)
-
     destination_depot = req['queryResult']['parameters']['destination_depot']
- #   rc.hset(license_plate, "Destination depot", destination_depot)
-
     phon_number = req['queryResult']['parameters']['phon_number']
-#    rc.hset(license_plate, "Phone number", phon_number)
-
     consignment_class = req['queryResult']['parameters']['consignment_class']
-    #rc.hset(license_plate, "Consignment class", consignment_class)
-    #if rc.hset(license_plate, "Consignment class", consignment_class) == 1 and rc.hset(license_plate, "Surname", surname)==1 and rc.hset(license_plate, "Truck type", truck_type)==1 and, rc.hset(license_plate, "Other_names", other_names)==1 and rc.hset(license_plate, "Consignment type", consignment_type)==1 and rc.hset(license_plate, "Start date", start_date)==1 and rc.hset(license_plate, "Originating depot", originating_depot)==1 and rc.hset(license_plate, "Phone number", phon_number)==1:
-     #   return "Yessssssss"
-    #else:
-     #   return "oitoerteortio"
-    drive_info={"Surname":surname, "Other names":other_names, "Truck type":truck_type, "Consignment type":consignment_type, "Start date":start_date, "Originating depot":originating_depot, "Destination depot":destination_depot, "Phone number":phon_number, "Consignment class":consignment_class}
     pipe = rc.pipeline()
-    #pipe.hset
     pipe.hset(license_plate, "Phone number", phon_number)
     pipe.hset(license_plate, "Destination depot", destination_depot)
-    pipe.hset(license_plate, "Other_names", other_names)
-    pipe.hset(license_plate, "Surname", surname)
+    pipe.hset(license_plate, "Full name", full_names)
     pipe.hset(license_plate, "Originating depot", originating_depot)
     pipe.hset(license_plate, "Consignment class", consignment_class)
     pipe.hset(license_plate, "Truck type", truck_type)
@@ -164,15 +155,76 @@ def registerTruck(req):
     pipe.hset(license_plate, "Consignment type", consignment_type)
 
     resp = pipe.execute()
-    return str(resp)
-
-    originalDetectIntentRequest = req['originalDetectIntentRequest']
+    #print(dict(req))
+    response = resp
+    if all(response) == 1:
+        response='Truck data successfully saved.'
+    else:
+        response='Truck data was not saved. It may already exist.'
     # # print('Dialogflow Parameters:')
     # # print(json.dumps(parameters, indent=4))
-    print(json.dumps(originalDetectIntentRequest, indent=4))
-    #return json.dumps(originalDetectIntentRequest, indent=4)
-    #return "Hello world"
+    # # print(json.dumps(originalDetectIntentRequest, indent=4))
+    return json.dumps(response, indent=4)
+
+def add_user(req):
+    phone = req['queryResult']['parameters']['inspector_phone']
+    user_type = req['queryResult']['parameters']['add_user_type']
+    password = req['queryResult']['parameters']['password']
+    password=create_password(password)
+    full_names = req['queryResult']['parameters']['inspector_full_name']
+    lga_ops = req['queryResult']['parameters']['lga_pf_ops']
+    state_ops = req['queryResult']['parameters']['state_of_ops']
+    created = str(datetime.now())
+    
+    pipe = rc.pipeline()
+    pipe.hset(phone, 'User type', user_type)
+    pipe.hset(phone, "Date created", created)
+    pipe.hset(phone, "State of ops", lga_ops)
+    pipe.hset(phone, "Full name", full_names)
+    pipe.hset(phone, "Password", password)
+    pipe.hset(phone, "LGA Of ops", lga_ops)
+    
+    resp = pipe.execute()
+    #print(dict(req))
+    response = resp
+    if all(response) == 1:
+        response='User data successfully saved.'
+    else:
+        response='User data was not saved. It may already exist.'
+    # # print('Dialogflow Parameters:')
+    # # print(json.dumps(parameters, indent=4))
+    # # print(json.dumps(originalDetectIntentRequest, indent=4))
+    return json.dumps(response, indent=4)
+
+def search(req):
+    license_plate = req['queryResult']['parameters']['license_plate']
+
+    
+    # pipe = rc.pipeline()
+    # pipe.hset(phone, "State of ops", lga_ops)
+    # pipe.hset(phone, "Full name", full_names)
+    # pipe.hset(phone, "Password", password)
+    # pipe.hset(phone, "LGA Of ops", lga_ops)
+
+    # resp = pipe.execute()
+    # response = str(resp)
+    if rc.exists(license_plate) == 1:
+        response = rc.hgetall(license_plate)
+        response = format_hash(response)
+    else:
+        response = 'This vehicle is not registered'
+    # # print('Dialogflow Parameters:')
+    # # print(json.dumps(parameters, indent=4))
+    # # print(json.dumps(originalDetectIntentRequest, indent=4))
+    return response
+
+# Send email function
+def sendMail(email, pwd, msisdn, userRole):
+       msg = Message('Your Covad Bot Service Password', sender = 'mzeriorwuese@gmail.com', recipients = [email])
+   msg.body = "Hello", msisdn, " this is your Covad Bot Password", pwd, ". Your user role is:", userRole
+   mail.send(msg)
+   return "Sent"
 
 
 if __name__ == '__main__':
-    app.run(debug=True, host='127.0.0.1')
+    app.run(debug=True, host=host)
