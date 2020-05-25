@@ -107,9 +107,11 @@ def webhook():
     if action == 'search_truck':
         res = search(req)
     if action == 'auth':
-        res = auth(req)
+        return auth(req)
     if action == 'email':
         res = covadMail(req)
+    if action == 'update_trip':
+        res = update_trip(req)
     else:
         log.error('Unexpected action.')
 
@@ -149,7 +151,7 @@ def auth(req):
                         "followupEventInput": {
                             "name": "add_user",
                             "parameters": {
-                            "requested_by": "parameter-value-2"
+                            "requested_by": phone
                             },
                             "languageCode": "en-US"
                         }
@@ -216,7 +218,7 @@ def registerTruck(req):
     full_names = req['queryResult']['parameters']['full_name']
     truck_type = req['queryResult']['parameters']['truck-type']
     consignment_type = req['queryResult']['parameters']['consignment_type']
-    start_date = req['queryResult']['parameters']['start_date']
+    start_date = req['queryResult']['parameters']['start_date']['date_time']
     originating_depot = req['queryResult']['parameters']['originating_depot']
     destination_depot = req['queryResult']['parameters']['destination_depot']
     phon_number = req['queryResult']['parameters']['phon_number']
@@ -268,9 +270,9 @@ def add_user(req):
     return json.dumps(response, indent=4)
 
 def search(req):
-    license_plate = req['queryResult']['parameters']['license_plate']
-    if rc.exists(license_plate) == 1:
-        response = rc.hgetall(license_plate)
+    license = req['queryResult']['parameters']['license_plate']
+    if rc.exists(license) == 1:
+        response = rc.hgetall(license)
         response = format_hash(response)
     else:
         response = 'This vehicle is not registered'
@@ -284,5 +286,30 @@ def covadMail(req):
     mail.send(mailMsg)
     return "Sent"
 
+def update_trip(req):
+    license = req['queryResult']['parameters']['license_plate_number']
+    confirm = req['queryResult']['parameters']['confirm']
+    phone = req["queryResult"]["outputContexts"][2]['parameters']['requested_by']
+    now=datetime.now()
+    phone_state=rc.hget(phone, 'State of ops')
+    truck_state=rc.hget(license, 'Destination depot')
+    
+    if phone_state == truck_state:
+        if confirm == 'y' or confirm == 'yes' or confirm == 'Y' or confirm == 'Yes':
+            old_truck=rc.hgetall(license)
+            print(old_truck)
+            #return 'old_truck'
+            rc.delete(license)
+            pipe = rc.pipeline()
+            pipe.hset(license+':'+str(now)+':'+'completed', 'Status', 'Completed')
+            pipe.hset(license+':'+str(now)+':'+'completed', 'Ended by', phone)
+            trip_change = pipe.execute()
+            if all(trip_change) == 1:
+                return 'You have succesfully ended the trip'
+        else:
+            return 'You did not change anything'
+    else:
+        return 'Your state of operation is not thesame as the destination depot of the truck, so therefore cannot end the trip'
+    
 if __name__ == '__main__':
     app.run(debug=True, host=host)
