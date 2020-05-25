@@ -24,10 +24,8 @@ Get a WWO API key here: https://developer.worldweatheronline.com/api/
 
 from envyaml import EnvYAML
 from passlib.hash import pbkdf2_sha256
-# read file env.yaml and parse config
-env = EnvYAML('env.yaml')
-#import the simple HTTP basic auth encoder and decoder.
-from basicauth import decode
+env = EnvYAML('env.yaml') # read file env.yaml and parse config
+from basicauth import decode #import the simple HTTP basic auth encoder and decoder.
 import os
 from rejson import Client, Path
 import json
@@ -42,6 +40,8 @@ app = Flask(__name__)
 mail= Mail(app) # initialize the mail object
 
 # define the mail configuration
+# create a temporary gmail app password for testing/evaluation
+
 app.config['MAIL_SERVER']='smtp.gmail.com'
 app.config['MAIL_PORT'] = 465
 app.config['MAIL_USERNAME'] = 'mzeriorwuese@gmail.com'
@@ -53,11 +53,9 @@ environmentVariable = dict(os.environ)
 print(environmentVariable)
 try:
     print(environmentVariable['GOOGLE_CLOUD_PROJECT'])
-    #rc=FlaskRedis(app, host=env['redisDBRemote.host'], port=env['redisDBRemote.port'], password=env['redisDBRemote.password'], decode_responses=env['redisDBRemote.DR'])
     rc = redis.Redis(host=env['redisDBRemote.host'], port=env['redisDBRemote.port'], password=env['redisDBRemote.password'], decode_responses=True)
     host = '0.0.0.0'
 except KeyError:
-    #rc=FlaskRedis(app, host=env['redisDBlocal.host'], port=env['redisDBlocal.port'], decode_responses=env['redisDBlocal.DR'])
     rc = redis.Redis(host=env['redisDBlocal.host'], port=env['redisDBlocal.port'], decode_responses=env['redisDBlocal.DR'])
     host = '127.0.0.1'
 log = app.logger
@@ -77,7 +75,7 @@ def webhook():
     headers = dict(request.headers)
     
     
-    # To decode an encoded basic auth string:
+    # To decode an encoded basic auth string:'''
     
     try:
         encoded_str = headers['Authorization']
@@ -94,8 +92,6 @@ def webhook():
   
     
     req = request.get_json(silent=True, force=True)
-    # print(req)
-    # return req
     
     try:
         action = req.get('queryResult').get('action')
@@ -110,11 +106,92 @@ def webhook():
         res = add_user(req)
     if action == 'search_truck':
         res = search(req)
+    if action == 'auth':
+        res = auth(req)
+    if action == 'email':
+        res = covadMail(req)
     else:
         log.error('Unexpected action.')
 
     return make_response(jsonify({'fulfillmentText': res}))
 
+"""
+Call authentication
+on successful authentication, we shall invoke add_user event
+via fulfillment by setting the followupEventInput 
+field of the WebhookResponse. We shall  set the 
+followupEventInput.parameters phone number field to provide parameters to the intent.
+this phone number filed shall be used to tell us who loggedin.
+"""
+def auth(req):
+    phone = req['queryResult']['parameters']['phone']
+    password = req['queryResult']['parameters']['password']
+    user_intent = req['queryResult']['parameters']['user_intent']
+    """
+    TODO by Iorwuese: 
+    1)  Check if phone number exixts
+    2)  Check if the phone number below to an admin, if not terminate the throw an error
+    3)  If the phone number is that of an admin
+        Check if the password hash in redis is similar to the hash of the password variable above
+        if they are not similar, then throw an error
+        IF the passwords are similar, then return the dict below
+    """
+    if rc.exists(phone)==1:
+        password_hash=rc.hget(phone, 'Password')
+        user_role=rc.hget(phone, 'User type')
+        if user_role == "Administrator":
+            if pbkdf2_sha256.verify(password, password_hash) == False:
+                res = "You are not allowed to execute this action"
+                return make_response(jsonify({'fulfillmentText': res}))
+            else:
+                if user_intent == 'add user':
+                    return {
+                        "followupEventInput": {
+                            "name": "add_user",
+                            "parameters": {
+                            "requested_by": "parameter-value-2"
+                            },
+                            "languageCode": "en-US"
+                        }
+                    }
+                elif user_intent == 'update trip':
+                    return {
+                        "followupEventInput": {
+                            "name": "update_trip",
+                            "parameters": {
+                            "requested_by": phone
+                            },
+                            "languageCode": "en-US"
+                        }
+                    }
+                elif user_intent == 'register truck':
+                    return {
+                        "followupEventInput": {
+                            "name": "register_truck",
+                            "parameters": {
+                            "requested_by": phone
+                            },
+                            "languageCode": "en-US"
+                        }
+                    }
+                elif user_intent == 'search truck':
+                    return {
+                        "followupEventInput": {
+                            "name": "search_truck",
+                            "parameters": {
+                            "requested_by": phone
+                            },
+                            "languageCode": "en-US"
+                        }
+                    }
+
+#This function shall be used to convert the hash data types returned from redis to strings
+def format_hash(my_hash):
+	new_val=''
+	for value in my_hash:
+		params = (value + ': '+my_hash[value])
+		new_val = new_val + params+'\n'
+	return new_val
 #This function shall be used to convert the hash data types returned from redis to strings
 def format_hash(my_hash):
 	new_val=''
@@ -155,16 +232,14 @@ def registerTruck(req):
     pipe.hset(license_plate, "Consignment type", consignment_type)
 
     resp = pipe.execute()
-    #print(dict(req))
     response = resp
     if all(response) == 1:
         response='Truck data successfully saved.'
     else:
         response='Truck data was not saved. It may already exist.'
-    # # print('Dialogflow Parameters:')
-    # # print(json.dumps(parameters, indent=4))
-    # # print(json.dumps(originalDetectIntentRequest, indent=4))
     return json.dumps(response, indent=4)
+
+#This is an authentication function    
 
 def add_user(req):
     phone = req['queryResult']['parameters']['inspector_phone']
@@ -185,46 +260,29 @@ def add_user(req):
     pipe.hset(phone, "LGA Of ops", lga_ops)
     
     resp = pipe.execute()
-    #print(dict(req))
     response = resp
     if all(response) == 1:
         response='User data successfully saved.'
     else:
         response='User data was not saved. It may already exist.'
-    # # print('Dialogflow Parameters:')
-    # # print(json.dumps(parameters, indent=4))
-    # # print(json.dumps(originalDetectIntentRequest, indent=4))
     return json.dumps(response, indent=4)
 
 def search(req):
     license_plate = req['queryResult']['parameters']['license_plate']
-
-    
-    # pipe = rc.pipeline()
-    # pipe.hset(phone, "State of ops", lga_ops)
-    # pipe.hset(phone, "Full name", full_names)
-    # pipe.hset(phone, "Password", password)
-    # pipe.hset(phone, "LGA Of ops", lga_ops)
-
-    # resp = pipe.execute()
-    # response = str(resp)
     if rc.exists(license_plate) == 1:
         response = rc.hgetall(license_plate)
         response = format_hash(response)
     else:
         response = 'This vehicle is not registered'
-    # # print('Dialogflow Parameters:')
-    # # print(json.dumps(parameters, indent=4))
-    # # print(json.dumps(originalDetectIntentRequest, indent=4))
     return response
 
-# Send email function
-def sendMail(email, pwd, msisdn, userRole):
-    msg = Message('Your Covad Bot Service Password', sender = 'mzeriorwuese@gmail.com', recipients = [email])
-    msg.body = ("Hello", msisdn, " this is your Covad Bot Password", pwd, ". Your user role is:", userRole)
-    mail.send(msg)
+def covadMail(req):
+    msg=req['queryResult']['parameters']['msg']
+    email=req['queryResult']['parameters']['msg']
+    mailMsg = Message(msg, sender = 'mzeriorwuese@gmail.com', recipients = [email])
+    mailMsg.body = ("Hello", email, " this is your Covad Bot Password", 'pwd', ". Your user role is:", msg)
+    mail.send(mailMsg)
     return "Sent"
-
 
 if __name__ == '__main__':
     app.run(debug=True, host=host)
